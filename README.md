@@ -2,9 +2,9 @@
 
 [![Rust](https://img.shields.io/badge/Rust-1.70+-orange.svg)](https://www.rust-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](https://github.com/ReactOnAuth/Rust-Minter)
-[![Performance](https://img.shields.io/badge/Performance-1M%2B%20attempts%2Fs-green.svg)](https://github.com/ReactOnAuth/Rust-Minter)
-[![Output](https://img.shields.io/badge/Output-JSON%20%7C%20TXT-purple.svg)](https://github.com/ReactOnAuth/Rust-Minter)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue.svg)](https://github.com/ReactOnAuth/Rust-Minter-Pump-Bonk)
+[![Performance](https://img.shields.io/badge/Performance-1M%2B%20attempts%2Fs-green.svg)](https://github.com/ReactOnAuth/Rust-Minter-Pump-Bonk)
+[![Output](https://img.shields.io/badge/Output-JSON%20%7C%20TXT-purple.svg)](https://github.com/ReactOnAuth/Rust-Minter-Pump-Bonk)
 
 A high-performance Rust application that generates Solana mint addresses ending with specific suffixes for pump.fun and lets.bonk tokens. The generator runs on all CPU cores at maximum utilization and exports addresses to JSON or TXT files.
 
