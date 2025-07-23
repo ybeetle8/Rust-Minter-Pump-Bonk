@@ -40,7 +40,7 @@ if "%choice%"=="1" (
     echo to parse CSV files and upload to database.
     echo.
     echo For now, you can:
-    echo 1. Use the main generator with --batch-size 0 to avoid duplicates
+    echo 1. Use the main generator to create new addresses
     echo 2. Manually import using Supabase dashboard
 ) else if "%choice%"=="4" (
     echo.

@@ -92,8 +92,9 @@ impl AddressGenerator {
         println!("🚀 Running at 100% CPU utilization...");
         
         // Generate all addresses first
+        let batch_start_time = Instant::now();
         for i in 0..count {
-            let keypair = self.find_address_with_suffix(suffix, num_cores).await?;
+            let keypair = self.find_address_with_suffix(suffix, num_cores, batch_start_time).await?;
             let pub_key = keypair.pubkey().to_string();
             
             println!("✨ Found address {}/{}: {}", i + 1, count, pub_key);
@@ -103,7 +104,7 @@ impl AddressGenerator {
         // Save to file
         self.save_addresses_to_file(&results, suffix, format, output).await?;
         
-        let elapsed = start_time.elapsed();
+        let elapsed = batch_start_time.elapsed();
         let total_attempts = self.attempts.load(Ordering::Relaxed);
         
         println!("\n📊 Generation complete!");
@@ -113,6 +114,63 @@ impl AddressGenerator {
         println!("⚡ Performance: {:.2} attempts/second", total_attempts as f64 / elapsed.as_secs_f64());
         
         Ok(results)
+    }
+
+    async fn generate_both_addresses(&self, count: u32, format: &str, output: Option<&str>) -> Result<(Vec<(Keypair, String)>, Vec<(Keypair, String)>)> {
+        let mut pump_results = Vec::new();
+        let mut bonk_results = Vec::new();
+        let batch_start_time = Instant::now();
+        
+        // Get number of CPU cores
+        let num_cores = thread::available_parallelism()
+            .map(|p| p.get())
+            .unwrap_or(1);
+        
+        println!("🔍 Generating {} addresses for both 'pump' and 'bonk' using {} CPU cores...", count, num_cores);
+        println!("🚀 Running at 100% CPU utilization...");
+        println!("🎯 Target: {} pump + {} bonk = {} total addresses", count, count, count * 2);
+        
+        // Generate addresses for both types simultaneously
+        let count_usize = count as usize;
+        while pump_results.len() < count_usize || bonk_results.len() < count_usize {
+            let keypair = self.find_address_with_both_suffixes(num_cores, batch_start_time).await?;
+            let pub_key = keypair.pubkey().to_string();
+            
+            if pub_key.ends_with("pump") && pump_results.len() < count_usize {
+                println!("✨ Found PUMP address {}/{}: {}", pump_results.len() + 1, count, pub_key);
+                pump_results.push((keypair, pub_key));
+            } else if pub_key.ends_with("bonk") && bonk_results.len() < count_usize {
+                println!("✨ Found BONK address {}/{}: {}", bonk_results.len() + 1, count, pub_key);
+                bonk_results.push((keypair, pub_key));
+            }
+            
+            // Show progress
+            let total_found = pump_results.len() + bonk_results.len();
+            let total_target = count_usize * 2;
+            if total_found % 10 == 0 || total_found == total_target {
+                println!("📊 Progress: {}/{} addresses found ({} pump, {} bonk)", 
+                        total_found, total_target, pump_results.len(), bonk_results.len());
+            }
+        }
+        
+        // Save to files
+        let pump_output = output.as_ref().map(|s| format!("{}_pump", s));
+        let bonk_output = output.as_ref().map(|s| format!("{}_bonk", s));
+        
+        self.save_addresses_to_file(&pump_results, "pump", format, pump_output.as_deref()).await?;
+        self.save_addresses_to_file(&bonk_results, "bonk", format, bonk_output.as_deref()).await?;
+        
+        let elapsed = batch_start_time.elapsed();
+        let total_attempts = self.attempts.load(Ordering::Relaxed);
+        
+        println!("\n📊 Generation complete!");
+        println!("⏱️  Total time: {:?}", elapsed);
+        println!("🎯 Total attempts: {}", total_attempts);
+        println!("📈 Average attempts per address: {:.2}", total_attempts as f64 / (count * 2) as f64);
+        println!("⚡ Performance: {:.2} attempts/second", total_attempts as f64 / elapsed.as_secs_f64());
+        println!("✅ Generated {} pump and {} bonk addresses", pump_results.len(), bonk_results.len());
+        
+        Ok((pump_results, bonk_results))
     }
 
     async fn save_addresses_to_file(&self, results: &[(Keypair, String)], suffix: &str, format: &str, output: Option<&str>) -> Result<()> {
@@ -170,7 +228,7 @@ impl AddressGenerator {
         Ok(())
     }
 
-    async fn find_address_with_suffix(&self, suffix: &str, num_cores: usize) -> Result<Keypair> {
+    async fn find_address_with_suffix(&self, suffix: &str, num_cores: usize, batch_start_time: Instant) -> Result<Keypair> {
         let (tx, mut rx) = mpsc::channel::<Keypair>(1);
         let found = Arc::new(AtomicBool::new(false));
         let attempts = self.attempts.clone();
@@ -183,6 +241,7 @@ impl AddressGenerator {
             let found = found.clone();
             let attempts = attempts.clone();
             let suffix = suffix_owned.clone();
+            let batch_start_time = batch_start_time.clone();
             
             let handle = tokio::task::spawn_blocking(move || {
                 let mut local_attempts = 0u64;
@@ -204,8 +263,10 @@ impl AddressGenerator {
                     // Report progress from thread 0 only every 5 seconds
                     if thread_id == 0 && last_report.elapsed() >= Duration::from_secs(5) {
                         let total_attempts = attempts.load(Ordering::Relaxed);
-                        println!("🔄 Total attempts: {} (searching for '{}' on {} cores)", 
-                                total_attempts, suffix, num_cores);
+                        let total_elapsed = batch_start_time.elapsed().as_secs_f64();
+                        let keys_per_second = if total_elapsed > 0.0 { total_attempts as f64 / total_elapsed } else { 0.0 };
+                        println!("🔄 Total attempts: {} ({:.0} keys/s) (searching for '{}' on {} cores)", 
+                                total_attempts, keys_per_second, suffix, num_cores);
                         last_report = Instant::now();
                     }
                     
@@ -215,6 +276,89 @@ impl AddressGenerator {
                         
                         println!("🎉 Found matching address after {} local attempts on thread {}!", 
                                 local_attempts, thread_id);
+                        
+                        // Send the result
+                        if tx.blocking_send(keypair).is_err() {
+                            // Channel was closed, another thread might have found it first
+                            break;
+                        }
+                        break;
+                    }
+                    
+                    // No delay - run at 100% CPU
+                }
+            });
+            
+            handles.push(handle);
+        }
+        
+        // Drop the original sender so the channel can close when all workers are done
+        drop(tx);
+        
+        // Wait for the first result
+        let result = rx.recv().await.ok_or_else(|| {
+            anyhow::anyhow!("All worker threads finished without finding a matching address")
+        })?;
+        
+        // Signal all threads to stop
+        found.store(true, Ordering::Relaxed);
+        
+        // Wait for all threads to complete
+        for handle in handles {
+            let _ = handle.await;
+        }
+        
+        Ok(result)
+    }
+
+    async fn find_address_with_both_suffixes(&self, num_cores: usize, batch_start_time: Instant) -> Result<Keypair> {
+        let (tx, mut rx) = mpsc::channel::<Keypair>(1);
+        let found = Arc::new(AtomicBool::new(false));
+        let attempts = self.attempts.clone();
+        
+        // Spawn worker threads on all CPU cores
+        let mut handles = Vec::new();
+        for thread_id in 0..num_cores {
+            let tx = tx.clone();
+            let found = found.clone();
+            let attempts = attempts.clone();
+            let batch_start_time = batch_start_time.clone();
+            
+            let handle = tokio::task::spawn_blocking(move || {
+                let mut local_attempts = 0u64;
+                let mut last_report = Instant::now();
+                
+                loop {
+                    // Check if another thread found the address
+                    if found.load(Ordering::Relaxed) {
+                        break;
+                    }
+                    
+                    let keypair = Keypair::new();
+                    let pubkey = keypair.pubkey();
+                    let address = pubkey.to_string();
+                    
+                    local_attempts += 1;
+                    attempts.fetch_add(1, Ordering::Relaxed);
+                    
+                    // Report progress from thread 0 only every 5 seconds
+                    if thread_id == 0 && last_report.elapsed() >= Duration::from_secs(5) {
+                        let total_attempts = attempts.load(Ordering::Relaxed);
+                        let total_elapsed = batch_start_time.elapsed().as_secs_f64();
+                        let keys_per_second = if total_elapsed > 0.0 { total_attempts as f64 / total_elapsed } else { 0.0 };
+                        println!("🔄 Total attempts: {} ({:.0} keys/s) (searching for 'pump' or 'bonk' on {} cores)", 
+                                total_attempts, keys_per_second, num_cores);
+                        last_report = Instant::now();
+                    }
+                    
+                    // Check for either suffix
+                    if address.ends_with("pump") || address.ends_with("bonk") {
+                        // Signal other threads to stop
+                        found.store(true, Ordering::Relaxed);
+                        
+                        println!("🎉 Found matching address after {} local attempts on thread {}! (ends with: {})", 
+                                local_attempts, thread_id, 
+                                if address.ends_with("pump") { "pump" } else { "bonk" });
                         
                         // Send the result
                         if tx.blocking_send(keypair).is_err() {
@@ -264,14 +408,7 @@ async fn main() -> Result<()> {
             generator.generate_addresses("bonk", count, &format, output.as_deref()).await?;
         }
         Commands::Both { count, format, output } => {
-            println!("🚀 Generating both pump and bonk addresses...\n");
-            
-            let pump_output = output.as_ref().map(|s| format!("{}_pump", s));
-            let bonk_output = output.as_ref().map(|s| format!("{}_bonk", s));
-            
-            generator.generate_addresses("pump", count, &format, pump_output.as_deref()).await?;
-            println!();
-            generator.generate_addresses("bonk", count, &format, bonk_output.as_deref()).await?;
+            generator.generate_both_addresses(count, &format, output.as_deref()).await?;
         }
     }
     

@@ -9,8 +9,7 @@ echo.
 echo Configuration:
 echo - Address types: PUMP + BONK
 echo - Count per type: 500
-echo - Batch size: 0 (bulk upload)
-echo - Local backup: ENABLED
+echo - Format: JSON
 echo - Auto-restart: ENABLED
 echo.
 echo Press Ctrl+C to stop
@@ -18,7 +17,7 @@ echo.
 
 :start
 echo [%date% %time%] Starting new batch (both types)...
-cargo run --release -- both --count 500 --batch-size 0 --save-local
+cargo run --release -- both --count 500
 
 echo.
 echo [%date% %time%] Batch complete. Waiting 60 seconds before next batch...

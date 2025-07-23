@@ -20,7 +20,7 @@ echo 🚀 Starting performance benchmark...
 echo ⏱️  Timing address generation with all CPU cores...
 echo.
 
-cargo run --release -- pump --count 1 --batch-size 0
+cargo run --release -- pump --count 1
 
 echo.
 echo 📊 Benchmark complete!
