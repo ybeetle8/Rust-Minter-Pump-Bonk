@@ -46,6 +46,18 @@ enum Commands {
         #[arg(short, long)]
         output: Option<String>,
     },
+    /// Generate addresses ending with 'pet' for pet tokens
+    Pet {
+        /// Number of addresses to generate
+        #[arg(short, long, default_value = "1")]
+        count: u32,
+        /// Output format (json or txt)
+        #[arg(short, long, default_value = "json")]
+        format: String,
+        /// Output filename (optional, will auto-generate if not provided)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
     /// Generate both pump and bonk addresses
     Both {
         /// Number of addresses to generate for each type
@@ -406,6 +418,9 @@ async fn main() -> Result<()> {
         }
         Commands::Bonk { count, format, output } => {
             generator.generate_addresses("bonk", count, &format, output.as_deref()).await?;
+        }
+        Commands::Pet { count, format, output } => {
+            generator.generate_addresses("Pet", count, &format, output.as_deref()).await?;
         }
         Commands::Both { count, format, output } => {
             generator.generate_both_addresses(count, &format, output.as_deref()).await?;

@@ -6,12 +6,23 @@
 [![Performance](https://img.shields.io/badge/Performance-1M%2B%20attempts%2Fs-green.svg)](https://github.com/ReactOnAuth/Rust-Minter-Pump-Bonk)
 [![Output](https://img.shields.io/badge/Output-JSON%20%7C%20TXT-purple.svg)](https://github.com/ReactOnAuth/Rust-Minter-Pump-Bonk)
 
-A high-performance Rust application that generates Solana mint addresses ending with specific suffixes for pump.fun and lets.bonk tokens. The generator runs on all CPU cores at maximum utilization and exports addresses to JSON or TXT files.
+A high-performance Rust application that generates Solana mint addresses ending with specific suffixes for pump.fun, lets.bonk, and pet tokens. The generator runs on all CPU cores at maximum utilization and exports addresses to JSON or TXT files.
+
+## Project Origin
+
+This project is based on the original [Rust-Minter-Pump-Bonk](https://github.com/ReactOnAuth/Rust-Minter-Pump-Bonk) repository by ReactOnAuth. 
+
+### Enhancements Added
+
+- ✨ **Pet Token Support**: Added new `pet` command to generate addresses ending with case-sensitive "Pet" suffix
+- 🎯 **Case-Sensitive Matching**: Strict case matching for Pet addresses (only "Pet", not "pet", "pEt", etc.)
+- 📝 **Updated Documentation**: Enhanced README with pet command usage and examples
+- 🔧 **Extended CLI**: Expanded command-line interface to include pet token generation
 
 ## Features
 
 - 🚀 **High Performance**: Utilizes all CPU cores at 100% capacity
-- 🎯 **Targeted Generation**: Generates addresses ending with "pump" and "bonk" (case sensitive)
+- 🎯 **Targeted Generation**: Generates addresses ending with "pump", "bonk", and "Pet" (case sensitive)
 - ⚡ **Optimized Detection**: Combined suffix detection for 50% faster generation when using "both" mode
 - 💾 **File Export**: Saves addresses to JSON or TXT files with timestamps
 - 🛠️ **Cross-Platform**: Works on Windows, Linux, and macOS
@@ -27,8 +38,8 @@ A high-performance Rust application that generates Solana mint addresses ending 
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/Kvickar/rustminter.git
-cd rustminter
+git clone https://github.com/ReactOnAuth/Rust-Minter-Pump-Bonk.git
+cd Rust-Minter-Pump-Bonk
 ```
 
 ### 2. Build and Run
@@ -36,8 +47,11 @@ cd rustminter
 # Build release version
 cargo build --release
 
-# Test with a single address (JSON format)
+# Test with a single pump address (JSON format)
 cargo run --release -- pump --count 1
+
+# Test with a single pet address (TXT format)
+cargo run --release -- pet --count 1 --format txt
 
 # Generate 1000 pump addresses (TXT format)
 cargo run --release -- pump --count 1000 --format txt
@@ -53,7 +67,8 @@ cargo run --release -- [COMMAND] [OPTIONS]
 Commands:
   pump    Generate pump.fun addresses (ending with "pump")
   bonk    Generate lets.bonk addresses (ending with "bonk")
-  both    Generate both types of addresses
+  pet     Generate pet addresses (ending with case-sensitive "Pet")
+  both    Generate both pump and bonk types of addresses
 
 Options:
   -c, --count <COUNT>        Number of addresses to generate [default: 1]
@@ -71,11 +86,17 @@ cargo run --release -- pump --count 1000
 # Generate 500 bonk addresses in TXT format
 cargo run --release -- bonk --count 500 --format txt
 
-# Generate both types (250 each) with custom filename - OPTIMIZED!
+# Generate 100 pet addresses in TXT format (case-sensitive "Pet")
+cargo run --release -- pet --count 100 --format txt
+
+# Generate both pump and bonk types (250 each) with custom filename - OPTIMIZED!
 cargo run --release -- both --count 250 --output my_addresses
 
 # Generate addresses with specific filename
 cargo run --release -- pump --count 100 --output pump_keys.json
+
+# Generate pet addresses with custom filename
+cargo run --release -- pet --count 50 --output pet_keys.json
 ```
 
 ### Windows Batch Scripts
@@ -107,17 +128,23 @@ manage_backups.bat
     "private_key": "5KJvsngHeMpm884wtkJNzQGaCErckhHJBGFsvd3VyK5qMZXj3hS",
     "suffix_type": "pump",
     "created_at": "2024-01-15T10:30:00Z"
+  },
+  {
+    "pub_key": "XYZ789...Pet",
+    "private_key": "2mPrvK3CPt2nxfYKj4rwYhMv5mYMqRG74FtwsfSJdNvD5qzm",
+    "suffix_type": "Pet",
+    "created_at": "2024-01-15T10:35:00Z"
   }
 ]
 ```
 
 ### TXT Format
 ```
-# Solana Mint Addresses - Generated with suffix 'pump'
-# Generated at: 2024-01-15T10:30:00Z
+# Solana Mint Addresses - Generated with suffix 'Pet'
+# Generated at: 2024-01-15T10:35:00Z
 # Format: public_key,private_key,suffix_type
 
-ABC123...pump,5KJvsngHeMpm884wtkJNzQGaCErckhHJBGFsvd3VyK5qMZXj3hS,pump
+XYZ789...Pet,2mPrvK3CPt2nxfYKj4rwYhMv5mYMqRG74FtwsfSJdNvD5qzm,Pet
 ```
 
 ## Performance
@@ -160,6 +187,7 @@ rustminter/
 ### Auto-generated Filenames
 - `pump_addresses_20240115_103000.json`: PUMP addresses in JSON format
 - `bonk_addresses_20240115_103000.txt`: BONK addresses in TXT format
+- `Pet_addresses_20240115_103000.txt`: PET addresses in TXT format (case-sensitive "Pet")
 - `my_addresses_pump.json`: Custom filename with suffix
 
 ### File Contents
